@@ -75,23 +75,67 @@ async def search_twitter(query: str, max_results: int = 10) -> dict:
 
 @mcp.tool()
 async def search_telegram(query: str, max_results: int = 10) -> dict:
-    """Поиск по публичным Telegram каналам.
+    """Поиск сообщений по всем доступным Telegram каналам.
 
-    В MVP — ограничен (Bot API не поддерживает глобальный поиск).
-    В V2 — Telethon (MTProto) для полноценного поиска.
-    Пока рекомендуется использовать search_web для поиска информации
-    о Telegram каналах.
+    Использует Telethon (MTProto) для поиска по истории каналов.
+    Требуется TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID и TELEGRAM_API_HASH.
+    Подходит для: мониторинг каналов, поиск обсуждений,
+    сбор информации по теме.
 
     Args:
         query: Поисковый запрос
-        max_results: Максимум результатов
+        max_results: Максимум результатов (1-100)
 
     Returns:
-        SearchResponse: {results: [{title, url, content, source, author, date, score}], total, source, error}
+        SearchResponse: {results: [{title, url, content, source, author, date}], total, source, error}
     """
     provider = get_provider("telegram")
     result = await provider.search(query, max_results)
     return result.model_dump()
+
+
+@mcp.tool()
+async def search_telegram_channel(channel: str, query: str,
+                                   max_results: int = 10) -> dict:
+    """Поиск сообщений в конкретном Telegram канале.
+
+    Использует Telethon (MTProto) для поиска по истории указанного канала.
+    Требуется TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID и TELEGRAM_API_HASH.
+    Бот должен быть добавлен в канал.
+
+    Args:
+        channel: @username канала (например, @durov),
+                 chat_id (например, -1001234567890),
+                 или invite link
+        query: Поисковый запрос
+        max_results: Максимум результатов (1-100)
+
+    Returns:
+        SearchResponse: {results: [{title, url, content, source, author, date}], total, source, error}
+    """
+    from mcp_info_gatherer.providers.telegram import TelegramProvider
+    provider = TelegramProvider()
+    result = await provider.search_channel(channel, query, max_results)
+    return result.model_dump()
+
+
+@mcp.tool()
+async def get_telegram_channel_info(channel: str) -> dict:
+    """Получить информацию о Telegram канале.
+
+    Использует Telethon (MTProto).
+    Требуется TELEGRAM_API_ID и TELEGRAM_API_HASH.
+
+    Args:
+        channel: @username, chat_id или invite link
+
+    Returns:
+        dict: {title, username, about, participants_count, link, error}
+    """
+    from mcp_info_gatherer.providers.telegram import TelegramProvider
+    provider = TelegramProvider()
+    result = await provider.get_channel_info(channel)
+    return result
 
 
 # ============================================================

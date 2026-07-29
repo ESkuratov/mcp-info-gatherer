@@ -101,14 +101,14 @@ class TestTelegramProvider:
     """Тесты TelegramProvider."""
 
     @pytest.mark.asyncio
-    async def test_search_no_key_returns_error(self):
+    async def test_search_no_credentials_returns_error(self):
         from mcp_info_gatherer.providers.telegram import TelegramProvider
 
         provider = TelegramProvider()
         result = await provider.search("test query")
         assert result.total == 0
         assert result.error is not None
-        assert "TELEGRAM_BOT_TOKEN" in result.error
+        assert "Не настроены" in result.error
 
 
 class TestGitHubProvider:
@@ -292,6 +292,8 @@ class TestMCPServer:
         assert "search_twitter" in tool_names
         # Telegram
         assert "search_telegram" in tool_names
+        assert "search_telegram_channel" in tool_names
+        assert "get_telegram_channel_info" in tool_names
         # GitHub
         assert "search_github" in tool_names
         assert "search_github_code" in tool_names

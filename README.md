@@ -10,7 +10,7 @@ GitHub, Hugging Face и arXiv.
 |---|---|---|---|---|
 | **Web** (Tavily) | ✅ | ✅ | Требуется ключ | Работает |
 | **Twitter/X** (API v2) | ✅ | ✅ | Требуется Bearer Token | Работает |
-| **Telegram** (Bot API) | 🚧 Заглушка | — | Требуется токен | V2: Telethon |
+| **Telegram** (Telethon MTProto) | ✅ User mode / ⚠️ Bot mode | — | API ID + Hash + Phone / Bot Token | Работает |
 | **GitHub** (REST API) | ✅ репозитории, код, issues | ✅ | Без ключа (60 req/h) | Работает |
 | **Hugging Face** (Hub API) | ✅ модели, датасеты | ✅ | Без ключа | Работает |
 | **arXiv** (API) | ✅ статьи | ✅ | Без ключа | Работает |
@@ -40,8 +40,13 @@ TAVILY_API_KEY="tvly-..."
 # TWITTER / X — опционально (требуется подписка X API)
 X_BEARER_TOKEN="..."
 
-# TELEGRAM — опционально (для V2)
-TELEGRAM_BOT_TOKEN="..."
+# TELEGRAM — два режима:
+# User mode (полноценный поиск по истории):
+TELEGRAM_API_ID="12345"       # из my.telegram.org/apps
+TELEGRAM_API_HASH="ваш_хэш"  # оттуда же
+TELEGRAM_PHONE="+79001234567" # ваш номер телефона
+# Bot mode (ограниченный — только последние сообщения):
+TELEGRAM_BOT_TOKEN="токен_от_BotFather"
 
 # GITHUB — опционально (для 5000 req/h вместо 60)
 GITHUB_TOKEN="..."
@@ -52,6 +57,7 @@ HF_TOKEN="..."
 
 - **Tavily API ключ** — получить на [tavily.com](https://tavily.com)
 - **X Bearer Token** — получить в [developer.x.com](https://developer.x.com) (требуется Basic/Pro подписка)
+- **Telegram API ID и Hash** — получить на [my.telegram.org/apps](https://my.telegram.org/apps) (бесплатно)
 - **Telegram Bot Token** — получить у [@BotFather](https://t.me/BotFather)
 - **GitHub Token** — создать в Settings → Developer settings → Personal access tokens
 - **GitHub, Hugging Face, arXiv** — работают без ключа
@@ -110,10 +116,37 @@ uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8003
 
 #### `search_telegram`
 
-Поиск по публичным Telegram каналам.
+Поиск сообщений по всем доступным Telegram каналам.
 
-> **Примечание:** В MVP — заглушка. Bot API не поддерживает глобальный поиск.
-> Полноценная реализация — в V2 через Telethon (MTProto).
+**Два режима:**
+
+| Режим | Возможности | Требуется |
+|---|---|---|
+| **User mode** | Полнотекстовый поиск по истории всех диалогов | `API_ID` + `API_HASH` + `PHONE` |
+| **Bot mode** | Только последние сообщения из каналов, где бот админ | `BOT_TOKEN` |
+
+User mode использует Telethon (MTProto) — даёт полноценный поиск, как в официальном клиенте.
+При первом запуске потребуется ввести код подтверждения из Telegram.
+
+**Параметры:**
+- `query` (str): Поисковый запрос
+- `max_results` (int, optional): 1-100, по умолчанию 10
+
+#### `search_telegram_channel`
+
+Поиск сообщений в конкретном Telegram канале.
+
+**Параметры:**
+- `channel` (str): `@username`, `chat_id` или invite link
+- `query` (str): Поисковый запрос
+- `max_results` (int, optional): 1-100, по умолчанию 10
+
+#### `get_telegram_channel_info`
+
+Получить информацию о Telegram канале (название, описание, подписчики).
+
+**Параметры:**
+- `channel` (str): `@username`, `chat_id` или invite link
 
 ### GitHub
 
