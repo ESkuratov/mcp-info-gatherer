@@ -257,7 +257,8 @@ async def search_huggingface_datasets(query: str, max_results: int = 10) -> dict
 
 
 @mcp.tool()
-async def search_arxiv(query: str, max_results: int = 10) -> dict:
+async def search_arxiv(query: str, max_results: int = 10,
+                       sort_by: str = "relevance") -> dict:
     """Поиск научных статей на arXiv.
 
     Использует arXiv API. Бесплатно, без ключа.
@@ -268,12 +269,35 @@ async def search_arxiv(query: str, max_results: int = 10) -> dict:
         query: Поисковый запрос (например, "large language models"
                или категория "cat:cs.AI")
         max_results: Максимум результатов (1-100)
+        sort_by: Сортировка — "relevance" (по релевантности)
+                 или "submittedDate" (по дате, свежие сверху)
 
     Returns:
         SearchResponse: {results: [{title, url, content, source, author, date}], total, source, error}
     """
     provider = get_provider("arxiv")
-    result = await provider.search(query, max_results)
+    result = await provider.search(query, max_results, sort_by)
+    return result.model_dump()
+
+
+@mcp.tool()
+async def search_arxiv_recent(query: str, days: int = 7,
+                              max_results: int = 50) -> dict:
+    """Поиск статей на arXiv за последние N дней.
+
+    Делает отдельные запросы на каждый день и объединяет результаты.
+    Подходит для: мониторинг новых публикаций по теме за неделю/месяц.
+
+    Args:
+        query: Поисковый запрос (например, "cat:cs.AI" или "ti:agent")
+        days: Сколько дней искать (1-30)
+        max_results: Максимум результатов (1-200)
+
+    Returns:
+        SearchResponse: {results: [{title, url, content, source, author, date}], total, source, error}
+    """
+    provider = get_provider("arxiv")
+    result = await provider.search_recent(query, days, max_results)
     return result.model_dump()
 
 
