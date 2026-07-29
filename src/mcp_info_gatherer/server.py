@@ -7,6 +7,7 @@ GitHub, Hugging Face и arXiv.
 Запуск:
   uv run mcp-info-gatherer --transport stdio
   uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8003
+  uv run mcp-info-gatherer --transport sse --host 0.0.0.0 --port 8003  # VPS
 """
 
 from mcp.server.fastmcp import FastMCP
@@ -323,7 +324,9 @@ def main():
     args = parser.parse_args()
 
     if args.transport == "sse":
-        mcp.run(transport="sse", host=args.host, port=args.port)
+        import uvicorn
+
+        uvicorn.run(mcp.sse_app(), host=args.host, port=args.port)
     else:
         mcp.run(transport="stdio")
 

@@ -72,6 +72,70 @@ uv run mcp-info-gatherer
 uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8003
 ```
 
+## Развёртывание на VPS
+
+Для удалённого доступа сервер запускается с SSE-транспортом.
+
+### systemd-сервис
+
+`/etc/systemd/system/mcp-info-gatherer.service`:
+
+```ini
+[Unit]
+Description=MCP Info Gatherer
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/mcp-info-gatherer
+EnvironmentFile=/opt/mcp-info-gatherer/.env
+ExecStart=/opt/mcp-info-gatherer/.venv/bin/uv run mcp-info-gatherer --transport sse --host 0.0.0.0 --port 8003
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now mcp-info-gatherer
+```
+
+### Reverse proxy (рекомендуется)
+
+Через Nginx с HTTPS и базовой аутентификацией:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name mcp.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/mcp.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mcp.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8003;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;
+    }
+}
+```
+
+### Подключение из Claude Desktop
+
+На локальной машине в `claude_desktop_config.json`:
+
+```json
+"mcp-info-gatherer": {
+  "url": "https://mcp.example.com"
+}
+```
+
 ## Инструменты MCP
 
 ### Web
