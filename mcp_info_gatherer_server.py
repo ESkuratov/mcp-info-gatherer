@@ -2,7 +2,7 @@
 
 Запуск:
   uv run mcp-info-gatherer --transport stdio
-  uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8003
+  uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8002
 """
 
 from mcp_info_gatherer.server import main

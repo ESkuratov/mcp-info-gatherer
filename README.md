@@ -69,14 +69,71 @@ HF_TOKEN="..."
 uv run mcp-info-gatherer
 
 # SSE (для отладки и удалённого доступа)
-uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8003
+uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8002
 ```
 
 ## Развёртывание на VPS
 
 Для удалённого доступа сервер запускается с SSE-транспортом.
 
-### systemd-сервис
+### Docker (рекомендуется)
+
+В репозитории готовы `Dockerfile`, `docker-compose.yml` и конфиги в `deploy/`.
+
+```bash
+# 1. Склонировать репозиторий на VPS
+git clone https://github.com/ESkuratov/mcp-info-gatherer.git /opt/mcp-info-gatherer
+cd /opt/mcp-info-gatherer
+
+# 2. Создать .env с ключами (см. .env.example)
+cp .env.example .env
+nano .env
+
+# 3. Запустить
+docker compose up -d --build
+
+# Проверка
+docker compose ps
+curl -s http://127.0.0.1:8002/sse
+```
+
+Контейнер слушает `127.0.0.1:8002` — наружу отдаёт nginx (см. ниже).
+Telegram session (`telegram_user_session.session`) хранится в volume `mcp_data`
+и переживает перезапуски контейнера.
+
+**User mode Telegram на VPS:** при первом запуске Telethon запросит код из Telegram.
+Проще авторизоваться локально (`uv run mcp-info-gatherer`), затем скопировать
+`telegram_user_session.session` в volume:
+
+```bash
+docker cp telegram_user_session.session mcp-info-gatherer:/data/
+```
+
+#### systemd (автозапуск при перезагрузке)
+
+```bash
+sudo cp deploy/mcp-info-gatherer.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now mcp-info-gatherer
+```
+
+#### Nginx + HTTPS
+
+```bash
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/mcp-info-gatherer
+# заменить mcp.example.com на свой домен
+sudo ln -s /etc/nginx/sites-available/mcp-info-gatherer /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Сертификат Let's Encrypt:
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d mcp.example.com
+```
+
+### systemd-сервис (без Docker)
 
 `/etc/systemd/system/mcp-info-gatherer.service`:
 
@@ -90,7 +147,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/mcp-info-gatherer
 EnvironmentFile=/opt/mcp-info-gatherer/.env
-ExecStart=/opt/mcp-info-gatherer/.venv/bin/uv run mcp-info-gatherer --transport sse --host 0.0.0.0 --port 8003
+ExecStart=/opt/mcp-info-gatherer/.venv/bin/uv run mcp-info-gatherer --transport sse --host 0.0.0.0 --port 8002
 Restart=always
 RestartSec=5
 
@@ -116,7 +173,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/mcp.example.com/privkey.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:8003;
+        proxy_pass http://127.0.0.1:8002;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -319,6 +376,12 @@ mcp-info-gatherer/
 │       └── arxiv.py       # arXiv API
 ├── tests/
 │   └── test_server.py     # 27 тестов
+├── deploy/
+│   ├── nginx.conf          # reverse proxy с HTTPS
+│   └── mcp-info-gatherer.service  # systemd unit для Docker
+├── Dockerfile              # multi-stage сборка через uv
+├── docker-compose.yml      # деплой на VPS
+├── .dockerignore
 ├── .env.example
 └── pyproject.toml
 ```

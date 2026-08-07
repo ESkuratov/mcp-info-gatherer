@@ -1,0 +1,22 @@
+# systemd unit для запуска Docker-контейнера.
+# Скопировать в /etc/systemd/system/mcp-info-gatherer.service
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now mcp-info-gatherer
+
+[Unit]
+Description=MCP Info Gatherer (Docker)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/mcp-info-gatherer
+ExecStart=/usr/bin/docker compose up -d --build
+ExecStop=/usr/bin/docker compose down
+ExecReload=/usr/bin/docker compose up -d --build
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

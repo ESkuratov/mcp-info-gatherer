@@ -44,3 +44,21 @@ class TrendItem(BaseModel):
     url: str = Field(default="", description="Ссылка")
     source: str = Field(description="Источник")
     mentions: Optional[int] = Field(None, description="Количество упоминаний")
+
+
+class ReleaseItem(BaseModel):
+    """Один GitHub релиз."""
+    repo: str = Field(description="Репозиторий (owner/repo)")
+    tag_name: str = Field(description="Тег релиза (например, v1.0.0)")
+    release_name: str = Field(default="", description="Название релиза")
+    published_at: str = Field(default="", description="Дата публикации (ISO 8601)")
+    body: str = Field(default="", description="Описание релиза (changelog)")
+    url: str = Field(default="", description="Ссылка на релиз")
+    prerelease: bool = Field(default=False, description="Pre-release?")
+
+
+class ReleasesResponse(BaseModel):
+    """Список релизов из GitHub."""
+    releases: list[ReleaseItem] = Field(default_factory=list, description="Релизы")
+    total: int = Field(default=0, description="Всего релизов")
+    error: Optional[str] = Field(None, description="Ошибка, если запрос не удался")

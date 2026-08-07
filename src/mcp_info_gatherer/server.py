@@ -6,8 +6,8 @@ GitHub, Hugging Face и arXiv.
 
 Запуск:
   uv run mcp-info-gatherer --transport stdio
-  uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8003
-  uv run mcp-info-gatherer --transport sse --host 0.0.0.0 --port 8003  # VPS
+  uv run mcp-info-gatherer --transport sse --host 127.0.0.1 --port 8002
+  uv run mcp-info-gatherer --transport sse --host 0.0.0.0 --port 8002  # VPS
 """
 
 from mcp.server.fastmcp import FastMCP
@@ -301,6 +301,33 @@ async def search_arxiv_recent(query: str, days: int = 7,
     return result.model_dump()
 
 
+@mcp.tool()
+async def get_github_releases(repo: str, per_page: int = 10,
+                               days_back: int = 7) -> dict:
+    """Получить релизы GitHub репозитория.
+
+    Использует GitHub Releases API.
+    Без токена — 60 req/h, с GITHUB_TOKEN — 5000 req/h.
+    Подходит для: мониторинг новых версий проектов,
+    сбор changelog, отслеживание обновлений зависимостей.
+
+    Args:
+        repo: Репозиторий в формате owner/repo (например, "openclaw/openclaw")
+        per_page: Количество последних релизов (1-30)
+        days_back: Фильтр — только релизы за последние N дней.
+                   0 = все релизы без фильтра по дате
+
+    Returns:
+        ReleasesResponse: {releases: [{repo, tag_name, release_name,
+                           published_at, body, url, prerelease}],
+                           total, error}
+    """
+    from mcp_info_gatherer.providers.github import GitHubProvider
+    provider = GitHubProvider()
+    result = await provider.get_releases(repo, per_page, days_back)
+    return result.model_dump()
+
+
 # ============================================================
 # TOOLS — TRENDS
 # ============================================================
@@ -343,7 +370,7 @@ def main():
     parser = argparse.ArgumentParser(description="MCP Info Gatherer")
     parser.add_argument("--transport", choices=["sse", "stdio"], default="stdio")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8003)
+    parser.add_argument("--port", type=int, default=8002)
 
     args = parser.parse_args()
 

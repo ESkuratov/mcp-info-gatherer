@@ -1,8 +1,10 @@
-"""GitHub search provider — поиск репозиториев, кода и issues."""
+"""GitHub search provider — поиск репозиториев, кода, issues и релизов."""
 
 import os
 
-from mcp_info_gatherer.models import SearchResponse, SearchResult, TrendItem
+from mcp_info_gatherer.models import (
+    SearchResponse, SearchResult, TrendItem, ReleaseItem, ReleasesResponse,
+)
 from mcp_info_gatherer.providers.base import InfoProvider
 
 
@@ -188,6 +190,71 @@ class GitHubProvider(InfoProvider):
             return SearchResponse(
                 results=[], total=0, source="github",
                 error=f"Ошибка GitHub Issues API: {e}",
+            )
+
+    async def get_releases(self, repo: str, per_page: int = 10,
+                            days_back: int = 0) -> ReleasesResponse:
+        """Получить релизы GitHub репозитория.
+
+        Использует GitHub Releases API.
+        Без токена — 60 req/h, с GITHUB_TOKEN — 5000 req/h.
+
+        Args:
+            repo: Репозиторий в формате owner/repo (например, "openclaw/openclaw")
+            per_page: Количество релизов (1-30)
+            days_back: Фильтр — только релизы за последние N дней (0 = все)
+
+        Returns:
+            ReleasesResponse: {releases: [{repo, tag_name, release_name,
+                               published_at, body, url, prerelease}],
+                               total, error}
+        """
+        try:
+            import httpx
+            from datetime import datetime, timezone, timedelta
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    f"https://api.github.com/repos/{repo}/releases",
+                    headers=self._headers(),
+                    params={"per_page": min(per_page, 30)},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            releases = []
+            cutoff = None
+            if days_back > 0:
+                cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+
+            for r in data:
+                published = r.get("published_at") or r.get("created_at")
+                if cutoff and published:
+                    pub_date = datetime.fromisoformat(
+                        published.replace("Z", "+00:00")
+                    )
+                    if pub_date < cutoff:
+                        continue
+
+                releases.append(ReleaseItem(
+                    repo=repo,
+                    tag_name=r.get("tag_name", ""),
+                    release_name=r.get("name", "") or "",
+                    published_at=published or "",
+                    body=(r.get("body", "") or "")[:2000],
+                    url=r.get("html_url", ""),
+                    prerelease=r.get("prerelease", False),
+                ))
+
+            return ReleasesResponse(
+                releases=releases,
+                total=len(releases),
+            )
+
+        except Exception as e:
+            return ReleasesResponse(
+                releases=[], total=0,
+                error=f"Ошибка GitHub Releases API для {repo}: {e}",
             )
 
     async def get_trends(self, topic: str, max_results: int = 5) -> list[TrendItem]:

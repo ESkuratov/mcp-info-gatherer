@@ -1,0 +1,23 @@
+services:
+  mcp-info-gatherer:
+    build: .
+    image: mcp-info-gatherer:latest
+    container_name: mcp-info-gatherer
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Только localhost — наружу отдаёт nginx (см. deploy/nginx.conf)
+      - "127.0.0.1:8002:8002"
+    volumes:
+      # Telegram session (telegram_user_session.session) переживает рестарты
+      - mcp_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 8002), 3); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mcp_data:
